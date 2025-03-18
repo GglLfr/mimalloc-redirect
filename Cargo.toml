@@ -5,3 +5,5 @@ edition = "2024"
 
 [build-dependencies]
 cmake = "0.1"
+cmake-package = "0.1"
+regex = "1"
