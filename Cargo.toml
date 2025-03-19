@@ -10,9 +10,10 @@ license = "MIT OR Apache-2.0"
 keywords = ["allocator", "mimalloc"]
 categories = ["memory-management"]
 include = [
+    "/mimalloc-src/LICENSE",
     "/mimalloc-src/CMakeLists.txt",
     "/mimalloc-src/mimalloc.pc.in",
-    "/mimalloc-src/LICENSE",
+    "/mimalloc-src/cmake",
     "/mimalloc-src/include",
     "/mimalloc-src/src",
 ]
