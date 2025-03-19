@@ -6,6 +6,9 @@ edition = "2024"
 [dependencies]
 allocator-api2 = "0.2"
 
+[target.'cfg(all(not(target_os = "windows"), any(target_env = "gnu", target_env = "musl")))'.dependencies]
+libc = { version = "0.2", default-features = false }
+
 [build-dependencies]
 cmake = "0.1"
 cmake-package = "0.1"

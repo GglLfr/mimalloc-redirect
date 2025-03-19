@@ -36,10 +36,22 @@ fn main() {
                     .define("MI_BUILD_SHARED", if static_crt { "OFF" } else { "ON" })
                     .define("MI_BUILD_STATIC", if static_crt { "ON" } else { "OFF" })
                     .build(),
-                if static_crt { true } else { false },
+                static_crt,
             )
         }
-        ("windows" | "linux", "gnu" | "musl") => {
+        ("windows", "gnu") => {
+            println!("cargo::warning=`*-windows-gnu` doesn't support application-wide redirection.");
+
+            println!("cargo::rustc-link-lib=advapi32");
+            (
+                config
+                    .define("MI_BUILD_SHARED", "OFF")
+                    .define("MI_BUILD_STATIC", "ON")
+                    .build(),
+                true,
+            )
+        }
+        ("linux", "gnu" | "musl") => {
             for wrap in [
                 "malloc",
                 "calloc",
@@ -49,14 +61,17 @@ fn main() {
                 "strdup",
                 "strndup",
                 "realpath",
+                "posix_memalign",
+                "memalign",
+                "valloc",
+                "pvalloc",
             ] {
                 println!("cargo::rustc-link-arg=-Wl,--wrap={wrap}")
             }
 
-            let musl = matches!(env, "musl");
             (
                 config
-                    .define("MI_LIBC_MUSL", if musl { "ON" } else { "OFF" })
+                    .define("MI_LIBC_MUSL", if matches!(env, "musl") { "ON" } else { "OFF" })
                     .define("MI_BUILD_SHARED", "OFF")
                     .define("MI_BUILD_STATIC", "ON")
                     .build(),

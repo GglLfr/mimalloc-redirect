@@ -21,14 +21,16 @@ unsafe extern "C" {
     fn mi_realloc_aligned(ptr: *mut c_void, new_size: usize, alignment: usize) -> *mut c_void;
 }
 
-#[cfg(any(target_env = "gnu", target_env = "musl"))]
+#[cfg(all(not(target_os = "windows"), any(target_env = "gnu", target_env = "musl")))]
 mod gnu_or_musl_wrapper {
+    use std::ffi::c_char;
+
     use super::*;
 
     unsafe extern "C" {
         fn mi_malloc(size: usize) -> *mut c_void;
 
-        fn mi_calloc(size: usize, n: usize) -> *mut c_void;
+        fn mi_calloc(count: usize, size: usize) -> *mut c_void;
 
         fn mi_realloc(ptr: *mut c_void, new_size: usize) -> *mut c_void;
 
@@ -40,43 +42,73 @@ mod gnu_or_musl_wrapper {
     }
 
     #[unsafe(no_mangle)]
+    #[inline]
     extern "C" fn __wrap_malloc(size: usize) -> *mut c_void {
         unsafe { mi_malloc(size) }
     }
 
     #[unsafe(no_mangle)]
-    extern "C" fn __wrap_calloc(size: usize, n: usize) -> *mut c_void {
-        unsafe { mi_calloc(size, n) }
+    #[inline]
+    extern "C" fn __wrap_calloc(count: usize, size: usize) -> *mut c_void {
+        unsafe { mi_calloc(count, size) }
     }
 
     #[unsafe(no_mangle)]
+    #[inline]
     extern "C" fn __wrap_realloc(ptr: *mut c_void, new_size: usize) -> *mut c_void {
         unsafe { mi_realloc(ptr, new_size) }
     }
 
     #[unsafe(no_mangle)]
+    #[inline]
     extern "C" fn __wrap_free(ptr: *mut c_void) {
         unsafe { mi_free(ptr) }
     }
 
     #[unsafe(no_mangle)]
+    #[inline]
     extern "C" fn __wrap_aligned_alloc(alignment: usize, size: usize) -> *mut c_void {
         unsafe { mi_malloc_aligned(size, alignment) }
     }
 
     #[unsafe(no_mangle)]
+    #[inline]
     extern "C" fn __wrap_strdup(s: *const c_char) -> *mut c_char {
         unsafe { mi_strdup(s) }
     }
 
     #[unsafe(no_mangle)]
+    #[inline]
     extern "C" fn __wrap_strndup(s: *const c_char, n: usize) -> *mut c_char {
         unsafe { mi_strndup(s, n) }
     }
 
     #[unsafe(no_mangle)]
+    #[inline]
     extern "C" fn __wrap_realpath(file_name: *const c_char, resolved_name: *mut c_char) -> *mut c_char {
         unsafe { mi_realpath(file_name, resolved_name) }
+    }
+
+    #[unsafe(no_mangle)]
+    #[inline]
+    extern "C" fn __wrap_posix_memalign(out: *mut *mut c_void, alignment: usize, size: usize) -> c_int {
+        if alignment < size_of::<usize>() || !alignment.is_power_of_two() {
+            return libc::EINVAL
+        }
+
+        match unsafe { mi_malloc_aligned(size, alignment) } {
+            ptr if ptr.is_null() => libc::ENOMEM,
+            ptr => {
+                unsafe { out.write(ptr) }
+                0
+            }
+        }
+    }
+
+    #[unsafe(no_mangle)]
+    #[inline]
+    extern "C" fn __wrap_memalign(alignment: usize, size: usize) -> *mut c_void {
+        unsafe { mi_malloc_aligned(size, alignment) }
     }
 }
 
