@@ -3,7 +3,13 @@ name = "mimalloc-redirect"
 version = "0.1.0"
 edition = "2024"
 
+[dependencies]
+allocator-api2 = "0.2"
+
 [build-dependencies]
 cmake = "0.1"
 cmake-package = "0.1"
 regex = "1"
+
+[features]
+nightly = ["allocator-api2/nightly"]
