@@ -1,7 +1,21 @@
 [package]
 name = "mimalloc-redirect"
 version = "0.1.0"
+authors = ["GlFolker"]
 edition = "2024"
+rust-version = "1.85"
+description = "Application-wide allocator redirection to MiMalloc."
+repository = "https://github.com/GlennFolker/mimalloc-redirect"
+license = "MIT OR Apache-2.0"
+keywords = ["allocator", "mimalloc"]
+categories = ["memory-management"]
+include = [
+    "/mimalloc-src/CMakeLists.txt",
+    "/mimalloc-src/mimalloc.pc.in",
+    "/mimalloc-src/LICENSE",
+    "/mimalloc-src/include",
+    "/mimalloc-src/src",
+]
 
 [dependencies]
 allocator-api2 = "0.2"

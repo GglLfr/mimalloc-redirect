@@ -1,5 +1,6 @@
 #![cfg_attr(feature = "nightly", feature(allocator_api))]
-extern crate core;
+#![doc = include_str!("../README.md")]
+#![cfg_attr(doc, deny(missing_docs))]
 
 use std::{
     ffi::{c_int, c_void},
@@ -22,10 +23,7 @@ unsafe extern "C" {
     fn mi_realloc_aligned(ptr: *mut c_void, new_size: usize, alignment: usize) -> *mut c_void;
 }
 
-#[cfg(all(
-    not(target_os = "windows"),
-    any(target_env = "gnu", target_env = "musl")
-))]
+#[cfg(all(not(target_os = "windows"), any(target_env = "gnu", target_env = "musl")))]
 mod gnu_or_musl_wrapper {
     use std::ffi::c_char;
 
@@ -89,20 +87,13 @@ mod gnu_or_musl_wrapper {
 
     #[unsafe(no_mangle)]
     #[inline]
-    extern "C" fn __wrap_realpath(
-        file_name: *const c_char,
-        resolved_name: *mut c_char,
-    ) -> *mut c_char {
+    extern "C" fn __wrap_realpath(file_name: *const c_char, resolved_name: *mut c_char) -> *mut c_char {
         unsafe { mi_realpath(file_name, resolved_name) }
     }
 
     #[unsafe(no_mangle)]
     #[inline]
-    extern "C" fn __wrap_posix_memalign(
-        out: *mut *mut c_void,
-        alignment: usize,
-        size: usize,
-    ) -> c_int {
+    extern "C" fn __wrap_posix_memalign(out: *mut *mut c_void, alignment: usize, size: usize) -> c_int {
         if alignment < size_of::<usize>() || !alignment.is_power_of_two() {
             return libc::EINVAL;
         }
@@ -175,10 +166,14 @@ mod linux_wrapper {
     }
 }
 
+/// Version struct returned by [`MiMalloc::get_version`].
 #[derive(Debug, Copy, Clone, Default)]
 pub struct Version {
+    /// The major version.
     pub major: u8,
+    /// The minor version.
     pub minor: u8,
+    /// The patch version.
     pub patch: u8,
 }
 
@@ -189,9 +184,19 @@ impl Display for Version {
     }
 }
 
+/// Redirection to MiMalloc, usable with `#[global_allocator]` like so:
+/// ```
+/// use mimalloc_redirect::MiMalloc;
+///
+/// #[global_allocator]
+/// static ALLOCATOR: MiMalloc = MiMalloc;
+/// ```
+///
+/// See the [crate-level documentation](crate) for more information.
 #[derive(Debug, Copy, Clone, Default)]
 pub struct MiMalloc;
 impl MiMalloc {
+    /// Obtains the built-in MiMalloc version, which is currently `v2.2.2`.
     #[inline]
     pub fn get_version() -> Version {
         let version = unsafe { mi_version() as i32 };
@@ -236,21 +241,13 @@ unsafe impl Allocator for MiMalloc {
     }
 
     #[inline]
-    unsafe fn grow(
-        &self,
-        ptr: NonNull<u8>,
-        old_layout: Layout,
-        new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
+    unsafe fn grow(&self, ptr: NonNull<u8>, old_layout: Layout, new_layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         match (old_layout.size(), new_layout.size()) {
             // Assume `ptr` is dangling if `old_layout.size() == 0`.
             (0, ..) => self.allocate(new_layout),
             // Safety requirements guarantee `new_layout.size() >= old_layout.size()`.
             (.., new_size) => NonNull::new(slice_from_raw_parts_mut(
-                unsafe {
-                    mi_realloc_aligned(ptr.as_ptr() as *mut c_void, new_size, new_layout.align())
-                        as *mut u8
-                },
+                unsafe { mi_realloc_aligned(ptr.as_ptr() as *mut c_void, new_size, new_layout.align()) as *mut u8 },
                 new_size,
             ))
             .ok_or(AllocError),
@@ -269,19 +266,13 @@ unsafe impl Allocator for MiMalloc {
             (0, ..) => self.allocate_zeroed(new_layout),
             // Safety requirements guarantee `new_layout.size() >= old_layout.size()`.
             (old_size, new_size) => {
-                match unsafe {
-                    mi_realloc_aligned(ptr.as_ptr() as *mut c_void, new_size, new_layout.align())
-                        as *mut u8
-                } {
+                match unsafe { mi_realloc_aligned(ptr.as_ptr() as *mut c_void, new_size, new_layout.align()) as *mut u8 } {
                     ptr if ptr.is_null() => Err(AllocError),
                     ptr => unsafe {
-                        // `mi_rezalloc_aligned` requires that the pointer was allocated with `mi_rezalloc`.
+                        // `mi_rezalloc_aligned` requires that the pointer was allocated with `mi_zalloc`.
                         // Unfortunately, that's not required by Rust, so we manually write 0s.
-                        ptr.add(old_size)
-                            .write_bytes(0, new_size.unchecked_sub(old_size));
-                        Ok(NonNull::new_unchecked(slice_from_raw_parts_mut(
-                            ptr, new_size,
-                        )))
+                        ptr.add(old_size).write_bytes(0, new_size.unchecked_sub(old_size));
+                        Ok(NonNull::new_unchecked(slice_from_raw_parts_mut(ptr, new_size)))
                     },
                 }
             }
@@ -289,12 +280,7 @@ unsafe impl Allocator for MiMalloc {
     }
 
     #[inline]
-    unsafe fn shrink(
-        &self,
-        ptr: NonNull<u8>,
-        old_layout: Layout,
-        new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
+    unsafe fn shrink(&self, ptr: NonNull<u8>, old_layout: Layout, new_layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         match new_layout.size() {
             0 => {
                 unsafe { self.deallocate(ptr, old_layout) }
@@ -302,10 +288,7 @@ unsafe impl Allocator for MiMalloc {
             }
             // Safety requirements guarantee `new_layout.size() <= old_layout.size()`.
             new_size => NonNull::new(slice_from_raw_parts_mut(
-                unsafe {
-                    mi_realloc_aligned(ptr.as_ptr() as *mut c_void, new_size, new_layout.align())
-                        as *mut u8
-                },
+                unsafe { mi_realloc_aligned(ptr.as_ptr() as *mut c_void, new_size, new_layout.align()) as *mut u8 },
                 new_size,
             ))
             .ok_or(AllocError),
