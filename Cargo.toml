@@ -9,13 +9,17 @@ repository = "https://github.com/GlennFolker/mimalloc-redirect"
 license = "MIT OR Apache-2.0"
 keywords = ["allocator", "mimalloc"]
 categories = ["memory-management"]
-include = [
-    "/mimalloc-src/LICENSE",
-    "/mimalloc-src/CMakeLists.txt",
-    "/mimalloc-src/mimalloc.pc.in",
-    "/mimalloc-src/cmake",
-    "/mimalloc-src/include",
-    "/mimalloc-src/src",
+exclude = [
+    "/.git*",
+    "/examples",
+
+    "/mimalloc-src/contrib",
+    "/mimalloc-src/doc",
+    "/mimalloc-src/docs",
+    "/mimalloc-src/test",
+    "/mimalloc-src/.git*",
+    "/mimalloc-src/*.yml",
+    "/mimalloc-src/*.md",
 ]
 
 [dependencies]
