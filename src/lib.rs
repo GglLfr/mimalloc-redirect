@@ -143,7 +143,7 @@ mod linux_wrapper {
     extern "C" fn __wrap_pvalloc(size: usize) -> *mut c_void {
         match usize::try_from(unsafe { libc::sysconf(libc::_SC_PAGESIZE) }) {
             Ok(page_size) if page_size > 0 => {
-                let alloc_size = ((size + page_size - 1) / page_size) * page_size;
+                let alloc_size = size.div_ceil(page_size) * page_size;
                 unsafe { mi_malloc_aligned(alloc_size, page_size) }
             }
             _ => {
