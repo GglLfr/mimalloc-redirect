@@ -5,7 +5,7 @@
 use std::{
     ffi::{c_int, c_void},
     fmt::{Display, Formatter, Result as FmtResult},
-    ptr::{slice_from_raw_parts_mut, NonNull},
+    ptr::{NonNull, slice_from_raw_parts_mut},
 };
 
 use allocator_api2::alloc::{AllocError, Allocator, GlobalAlloc, Layout};
