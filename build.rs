@@ -54,7 +54,7 @@ fn main() {
                 true,
             )
         }
-        ("linux", "gnu" | "musl") => {
+        ("linux", "gnu" | "musl") | ("android", "") => {
             for wrap in [
                 "malloc",
                 "calloc",
@@ -74,11 +74,24 @@ fn main() {
                 println!("cargo::rustc-link-arg=-Wl,--wrap={wrap}")
             }
 
+            unsafe {
+                set_var("CC", "aarch64-linux-android35-clang.cmd");
+                set_var("CXX", "aarch64-linux-android35-clang++.cmd");
+
+            }
+
             (
                 config
                     .define("MI_LIBC_MUSL", if matches!(env, "musl") { "ON" } else { "OFF" })
                     .define("MI_BUILD_SHARED", "OFF")
                     .define("MI_BUILD_STATIC", "ON")
+                    .generator("Ninja")
+                    .define("ANDROID_ABI", "arm64-v8a")
+                    .define(
+                        "CMAKE_TOOLCHAIN_FILE",
+                        "/Android/ndk/29.0.13113456/build/cmake/android.toolchain.cmake",
+                    )
+                    .define("ANDROID_PLATFORM", "35")
                     .build(),
                 true,
             )
@@ -120,7 +133,7 @@ fn main() {
                     println!("cargo::rustc-link-lib=dylib={}.dll", cap.get(2).unwrap().as_str(),);
                 }
             }
-            ("windows" | "linux", "gnu" | "musl") => {
+            ("windows" | "linux", "gnu" | "musl") | ("android", "") => {
                 static SPLITTER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(.*)/lib([^/]+)\.a.*").unwrap());
                 let cap = SPLITTER.captures(&lib).unwrap();
 

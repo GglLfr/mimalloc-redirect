@@ -1,14 +1,11 @@
-#![cfg_attr(feature = "nightly", feature(allocator_api))]
 #![doc = include_str!("../README.md")]
 #![cfg_attr(doc, deny(missing_docs))]
 
 use std::{
+    alloc::{GlobalAlloc, Layout},
     ffi::{c_int, c_void},
     fmt::{Display, Formatter, Result as FmtResult},
-    ptr::{NonNull, slice_from_raw_parts_mut},
 };
-
-use allocator_api2::alloc::{AllocError, Allocator, GlobalAlloc, Layout};
 
 // Functions that are always needed for `MiMalloc`.
 unsafe extern "C" {
@@ -23,7 +20,10 @@ unsafe extern "C" {
     fn mi_realloc_aligned(ptr: *mut c_void, new_size: usize, alignment: usize) -> *mut c_void;
 }
 
-#[cfg(all(not(target_os = "windows"), any(target_env = "gnu", target_env = "musl")))]
+#[cfg(any(
+    all(not(target_os = "windows"), any(target_env = "gnu", target_env = "musl")),
+    target_os = "android",
+))]
 mod gnu_or_musl_wrapper {
     use std::ffi::c_char;
 
@@ -204,94 +204,6 @@ impl MiMalloc {
             major: ((version / 100) % 10) as u8,
             minor: ((version / 10) % 10) as u8,
             patch: (version % 10) as u8,
-        }
-    }
-}
-
-unsafe impl Allocator for MiMalloc {
-    #[inline]
-    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        match layout.size() {
-            0 => Ok(NonNull::<[u8; 0]>::dangling()),
-            size => NonNull::new(slice_from_raw_parts_mut(
-                unsafe { mi_malloc_aligned(size, layout.align()) as *mut u8 },
-                size,
-            ))
-            .ok_or(AllocError),
-        }
-    }
-
-    #[inline]
-    fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        match layout.size() {
-            0 => Ok(NonNull::<[u8; 0]>::dangling()),
-            size => NonNull::new(slice_from_raw_parts_mut(
-                unsafe { mi_zalloc_aligned(size, layout.align()) as *mut u8 },
-                size,
-            ))
-            .ok_or(AllocError),
-        }
-    }
-
-    #[inline]
-    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
-        if layout.size() != 0 {
-            unsafe { mi_free(ptr.as_ptr() as *mut c_void) }
-        }
-    }
-
-    #[inline]
-    unsafe fn grow(&self, ptr: NonNull<u8>, old_layout: Layout, new_layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        match (old_layout.size(), new_layout.size()) {
-            // Assume `ptr` is dangling if `old_layout.size() == 0`.
-            (0, ..) => self.allocate(new_layout),
-            // Safety requirements guarantee `new_layout.size() >= old_layout.size()`.
-            (.., new_size) => NonNull::new(slice_from_raw_parts_mut(
-                unsafe { mi_realloc_aligned(ptr.as_ptr() as *mut c_void, new_size, new_layout.align()) as *mut u8 },
-                new_size,
-            ))
-            .ok_or(AllocError),
-        }
-    }
-
-    #[inline]
-    unsafe fn grow_zeroed(
-        &self,
-        ptr: NonNull<u8>,
-        old_layout: Layout,
-        new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
-        match (old_layout.size(), new_layout.size()) {
-            // Assume `ptr` is dangling if `old_layout.size() == 0`.
-            (0, ..) => self.allocate_zeroed(new_layout),
-            // Safety requirements guarantee `new_layout.size() >= old_layout.size()`.
-            (old_size, new_size) => {
-                match unsafe { mi_realloc_aligned(ptr.as_ptr() as *mut c_void, new_size, new_layout.align()) as *mut u8 } {
-                    ptr if ptr.is_null() => Err(AllocError),
-                    ptr => unsafe {
-                        // `mi_rezalloc_aligned` requires that the pointer was allocated with `mi_zalloc`.
-                        // Unfortunately, that's not required by Rust, so we manually write 0s.
-                        ptr.add(old_size).write_bytes(0, new_size.unchecked_sub(old_size));
-                        Ok(NonNull::new_unchecked(slice_from_raw_parts_mut(ptr, new_size)))
-                    },
-                }
-            }
-        }
-    }
-
-    #[inline]
-    unsafe fn shrink(&self, ptr: NonNull<u8>, old_layout: Layout, new_layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        match new_layout.size() {
-            0 => {
-                unsafe { self.deallocate(ptr, old_layout) }
-                Ok(NonNull::<[u8; 0]>::dangling())
-            }
-            // Safety requirements guarantee `new_layout.size() <= old_layout.size()`.
-            new_size => NonNull::new(slice_from_raw_parts_mut(
-                unsafe { mi_realloc_aligned(ptr.as_ptr() as *mut c_void, new_size, new_layout.align()) as *mut u8 },
-                new_size,
-            ))
-            .ok_or(AllocError),
         }
     }
 }
