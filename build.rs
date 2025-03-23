@@ -139,7 +139,8 @@ fn main() {
         }
     };
 
-    let Some(dst) = config.build().to_str() else {
+    let dst = config.build();
+    let Some(dst) = dst.to_str() else {
         println!("cargo::error=Non-unicode paths is unsupported!");
         return
     };
