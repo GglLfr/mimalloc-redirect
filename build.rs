@@ -6,11 +6,15 @@ use std::{
 use cmake::Config;
 
 fn main() {
-    let static_crt = var("CARGO_CFG_TARGET_FEATURE").unwrap().split(',').any(|f| f == "crt-static");
+    let static_crt = var("CARGO_CFG_TARGET_FEATURE")
+        .unwrap()
+        .split(',')
+        .any(|f| f == "crt-static");
 
     let mut config = Config::new("mimalloc-src");
     config
         .static_crt(static_crt)
+        .define("CMAKE_BUILD_TYPE", "Release")
         .define("MI_OVERRIDE", "OFF")
         .define("MI_BUILD_OBJECT", "OFF")
         .define("MI_BUILD_TESTS", "OFF")
@@ -19,7 +23,10 @@ fn main() {
     let arch = &*var("CARGO_CFG_TARGET_ARCH").unwrap();
     let os = &*var("CARGO_CFG_TARGET_OS").unwrap();
     let env = &*var("CARGO_CFG_TARGET_ENV").unwrap();
-    let wasm = var("CARGO_CFG_TARGET_FAMILY").unwrap().split(',').any(|f| f == "wasm");
+    let wasm = var("CARGO_CFG_TARGET_FAMILY")
+        .unwrap()
+        .split(',')
+        .any(|f| f == "wasm");
 
     enum Target {
         Windows { msvc: bool },
@@ -45,7 +52,9 @@ fn main() {
             Windows { msvc: true }
         }
         ("windows", "gnu") => {
-            println!("cargo::warning=`*-windows-gnu` doesn't support application-wide redirection.");
+            println!(
+                "cargo::warning=`*-windows-gnu` doesn't support application-wide redirection."
+            );
 
             println!("cargo::rustc-link-lib=advapi32");
             config
@@ -76,14 +85,19 @@ fn main() {
             }
 
             config
-                .define("MI_LIBC_MUSL", if matches!(env, "musl") { "ON" } else { "OFF" })
+                .define(
+                    "MI_LIBC_MUSL",
+                    if matches!(env, "musl") { "ON" } else { "OFF" },
+                )
                 .define("MI_BUILD_SHARED", "OFF")
                 .define("MI_BUILD_STATIC", "ON");
 
             if matches!(os, "android") {
-                let Some(ndk_root) = var_os("ANDROID_NDK_HOME").or_else(|| var_os("ANDROID_NDK_ROOT")) else {
+                let Some(ndk_root) =
+                    var_os("ANDROID_NDK_HOME").or_else(|| var_os("ANDROID_NDK_ROOT"))
+                else {
                     println!("cargo::error=`ANDROID_NDK_HOME` not found!");
-                    return
+                    return;
                 };
 
                 let mut toolchain = PathBuf::from(ndk_root);
@@ -107,7 +121,7 @@ fn main() {
                     "x86" => "x86",
                     _ => {
                         println!("cargo::error=Unsupported Android architecture: `{arch}`!");
-                        return
+                        return;
                     }
                 };
 
@@ -142,7 +156,7 @@ fn main() {
     let dst = config.build();
     let Some(dst) = dst.to_str() else {
         println!("cargo::error=Non-unicode paths is unsupported!");
-        return
+        return;
     };
 
     match target {
