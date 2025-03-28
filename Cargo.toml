@@ -1,6 +1,6 @@
 [package]
 name = "mimalloc-redirect"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["GlFolker"]
 edition = "2024"
 rust-version = "1.85"
@@ -26,4 +26,3 @@ libc = { version = "0.2", default-features = false }
 
 [build-dependencies]
 cmake = "0.1"
-regex = "1"

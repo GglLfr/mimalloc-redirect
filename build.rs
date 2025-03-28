@@ -156,9 +156,9 @@ fn main() {
         return;
     };
 
+    println!("cargo::rustc-link-search=native={dst}/lib");
     match target {
         Windows { msvc: true } => {
-            println!("cargo::rustc-link-search=native={dst}/lib");
             if static_crt {
                 println!("cargo::rustc-link-lib=static={name}");
             } else {
@@ -167,7 +167,6 @@ fn main() {
             }
         }
         Windows { msvc: false } | Linux | Android => {
-            println!("cargo::rustc-link-search=native={dst}/lib");
             println!("cargo::rustc-link-lib=static={name}");
         }
     }
