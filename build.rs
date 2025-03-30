@@ -17,7 +17,7 @@ fn main() {
         ("s" | "z", ..) => ("mimalloc", "MinSizeRel"),
         ("1" | "2" | "3", debug) => match debug {
             "false" => ("mimalloc", "Release"),
-            "true" => ("mimalloc-debug", "RelWithDebInfo"),
+            "true" => ("mimalloc", "RelWithDebInfo"),
             debug => {
                 println!("cargo::error=Invalid `DEBUG` value: `{debug}`.");
                 return
