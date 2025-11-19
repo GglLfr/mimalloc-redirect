@@ -21,7 +21,10 @@ unsafe extern "C" {
 }
 
 #[cfg(any(
-    all(not(target_os = "windows"), any(target_env = "gnu", target_env = "musl")),
+    all(
+        not(target_os = "windows"),
+        any(target_env = "gnu", target_env = "musl")
+    ),
     target_os = "android",
 ))]
 mod gnu_or_musl_wrapper {
@@ -44,56 +47,54 @@ mod gnu_or_musl_wrapper {
     }
 
     #[unsafe(no_mangle)]
-    #[inline]
     extern "C" fn __wrap_malloc(size: usize) -> *mut c_void {
         unsafe { mi_malloc(size) }
     }
 
     #[unsafe(no_mangle)]
-    #[inline]
     extern "C" fn __wrap_calloc(count: usize, size: usize) -> *mut c_void {
         unsafe { mi_calloc(count, size) }
     }
 
     #[unsafe(no_mangle)]
-    #[inline]
     extern "C" fn __wrap_realloc(ptr: *mut c_void, new_size: usize) -> *mut c_void {
         unsafe { mi_realloc(ptr, new_size) }
     }
 
     #[unsafe(no_mangle)]
-    #[inline]
     extern "C" fn __wrap_free(ptr: *mut c_void) {
         unsafe { mi_free(ptr) }
     }
 
     #[unsafe(no_mangle)]
-    #[inline]
     extern "C" fn __wrap_aligned_alloc(alignment: usize, size: usize) -> *mut c_void {
         unsafe { mi_malloc_aligned(size, alignment) }
     }
 
     #[unsafe(no_mangle)]
-    #[inline]
     extern "C" fn __wrap_strdup(s: *const c_char) -> *mut c_char {
         unsafe { mi_strdup(s) }
     }
 
     #[unsafe(no_mangle)]
-    #[inline]
     extern "C" fn __wrap_strndup(s: *const c_char, n: usize) -> *mut c_char {
         unsafe { mi_strndup(s, n) }
     }
 
     #[unsafe(no_mangle)]
-    #[inline]
-    extern "C" fn __wrap_realpath(file_name: *const c_char, resolved_name: *mut c_char) -> *mut c_char {
+    extern "C" fn __wrap_realpath(
+        file_name: *const c_char,
+        resolved_name: *mut c_char,
+    ) -> *mut c_char {
         unsafe { mi_realpath(file_name, resolved_name) }
     }
 
     #[unsafe(no_mangle)]
-    #[inline]
-    extern "C" fn __wrap_posix_memalign(out: *mut *mut c_void, alignment: usize, size: usize) -> c_int {
+    extern "C" fn __wrap_posix_memalign(
+        out: *mut *mut c_void,
+        alignment: usize,
+        size: usize,
+    ) -> c_int {
         if alignment < size_of::<usize>() || !alignment.is_power_of_two() {
             return libc::EINVAL;
         }
@@ -121,13 +122,11 @@ mod linux_wrapper {
     }
 
     #[unsafe(no_mangle)]
-    #[inline]
     extern "C" fn __wrap_memalign(alignment: usize, size: usize) -> *mut c_void {
         unsafe { mi_malloc_aligned(size, alignment) }
     }
 
     #[unsafe(no_mangle)]
-    #[inline]
     extern "C" fn __wrap_valloc(size: usize) -> *mut c_void {
         match usize::try_from(unsafe { libc::sysconf(libc::_SC_PAGESIZE) }) {
             Ok(page_size) if page_size > 0 => unsafe { mi_malloc_aligned(size, page_size) },
@@ -139,7 +138,6 @@ mod linux_wrapper {
     }
 
     #[unsafe(no_mangle)]
-    #[inline]
     extern "C" fn __wrap_pvalloc(size: usize) -> *mut c_void {
         match usize::try_from(unsafe { libc::sysconf(libc::_SC_PAGESIZE) }) {
             Ok(page_size) if page_size > 0 => {
@@ -154,13 +152,11 @@ mod linux_wrapper {
     }
 
     #[unsafe(no_mangle)]
-    #[inline]
     extern "C" fn __wrap_malloc_usable_size(ptr: *mut c_void) -> usize {
         unsafe { mi_usable_size(ptr) }
     }
 
     #[unsafe(no_mangle)]
-    #[inline]
     extern "C" fn __wrap_reallocf(ptr: *mut c_void, new_size: usize) -> *mut c_void {
         unsafe { mi_reallocf(ptr, new_size) }
     }
@@ -196,7 +192,7 @@ impl Display for Version {
 #[derive(Debug, Copy, Clone, Default)]
 pub struct MiMalloc;
 impl MiMalloc {
-    /// Obtains the built-in MiMalloc version, which is currently `v2.2.2`.
+    /// Obtains the built-in MiMalloc version, which is currently `v3.1.5`.
     #[inline]
     pub fn get_version() -> Version {
         let version = unsafe { mi_version() as i32 };
