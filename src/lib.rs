@@ -192,14 +192,15 @@ impl Display for Version {
 #[derive(Debug, Copy, Clone, Default)]
 pub struct MiMalloc;
 impl MiMalloc {
-    /// Obtains the built-in MiMalloc version, which is currently `v3.1.5`.
+    /// Obtains the built-in MiMalloc version, which is currently `v3.2.8`.
     #[inline]
     pub fn get_version() -> Version {
+        // MiMalloc v3 calculates version as `1000 * major + 100 * minor + patch`.
         let version = unsafe { mi_version() as i32 };
         Version {
-            major: ((version / 100) % 10) as u8,
-            minor: ((version / 10) % 10) as u8,
-            patch: (version % 10) as u8,
+            major: (version / 1000) as u8,
+            minor: ((version / 100) % 10) as u8,
+            patch: (version % 100) as u8,
         }
     }
 }
